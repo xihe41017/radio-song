@@ -106,6 +106,7 @@ git pull --ff-only >/dev/null 2>&1 || true
 # ---------- 后端 + 前端 ----------
 info "配置后端环境..."
 cd "$APP_DIR/backend"
+mkdir -p "$APP_DIR/backend/data"   # 数据库目录（被 gitignore，需手动创建）
 python3 -m venv .venv
 .venv/bin/pip install --quiet --upgrade pip
 .venv/bin/pip install --quiet -r requirements.txt

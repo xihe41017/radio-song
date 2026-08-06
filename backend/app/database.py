@@ -1,7 +1,14 @@
+from pathlib import Path
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
+
+# 确保数据库目录存在（data/ 被 gitignore，克隆到服务器后需自动创建）
+_db_file = settings.DATABASE_URL.replace("sqlite:///", "")
+if _db_file != settings.DATABASE_URL:
+    Path(_db_file).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
     settings.DATABASE_URL,
