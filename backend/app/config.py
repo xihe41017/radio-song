@@ -1,0 +1,35 @@
+"""广播站点歌系统 - 全局配置（环境变量可覆盖）。"""
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
+
+
+class Settings:
+    DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'data' / 'radio.db'}")
+
+    # 独立管理员账号（与表白墙无关，首次启动自动创建）
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+    JWT_SECRET = os.getenv("JWT_SECRET", "radio-station-dev-secret")
+    JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "168"))
+
+    CORS_ORIGINS = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+
+
+settings = Settings()
+
+
+# (key, 默认值, 描述)
+DEFAULT_SETTINGS = [
+    ("site_name", "广播站点歌台", "站点名称", 0),
+    ("request_limit", "3", "单个IP最多同时点播(待播放)的歌曲数", 0),
+    ("rate_search", "20", "搜索接口限速(次/分钟)", 1),
+    ("rate_request", "3", "点歌接口限速(次/分钟)", 1),
+    ("rate_login", "10", "管理员登录限速(次/分钟)", 1),
+    ("jwt_secret", settings.JWT_SECRET, "JWT签名密钥（修改后管理员需重新登录）", 1),
+]
