@@ -75,22 +75,58 @@ cd ../backend && .venv/Scripts/python run.py   # http://localhost:8001
 
 ## ⚡ 服务器一键部署（Linux）
 
-在 Linux 服务器上（需 root），一行命令即可部署点歌系统。部署过程中**会交互式设置端口和管理员密码**（密码留空自动生成；默认端口 8001）。
+> 只需一条命令，在 Linux 服务器上（需 root）完成部署。支持 Ubuntu / Debian / CentOS。
 
 ```bash
-# 国内服务器推荐（jsdelivr CDN 加速）
+# 国内服务器（jsdelivr CDN 加速，推荐）
 bash -c "$(curl -sSL https://cdn.jsdelivr.net/gh/xihe41017/radio-song@main/deploy/install.sh)"
 
 # 海外服务器
 bash -c "$(curl -sSL https://raw.githubusercontent.com/xihe41017/radio-song/main/deploy/install.sh)"
 ```
 
-脚本会自动：装依赖（Python/Node）→ 拉取项目 → 构建 → 生成管理员密码 → 注册 systemd 守护进程 → 可选 Nginx 反代 → **配置每分钟自动更新**。支持 Ubuntu / Debian / CentOS。
+### 🎛️ 部署过程（交互式）
+
+运行后会依次询问，也可用环境变量跳过：
+
+```
+请输入点歌系统要使用的端口 [默认 8001]:   ← 选端口
+请设置点歌系统管理员密码（≥6位，直接回车自动生成）: *****   ← 静默输入
+请再次输入确认: *****
+是否配置 Nginx：80 端口反向代理到 8001？（y/N）:   ← 可选
+```
+
+| 设置项 | 说明 |
+| --- | --- |
+| 端口 | 任意 1~65535，自动检测占用（默认 8001） |
+| 管理员密码 | 静默输入 + 二次确认，留空自动生成强随机密码 |
+| JWT 密钥 | 自动生成（可用 `JWT_SECRET` 指定） |
+| Nginx | 可选，80 端口反代到你选的端口 |
+
+**非交互部署**：
 
 ```bash
-# 自定义端口 / 密码 / 域名（可选）
 PORT=8081 ADMIN_PASSWORD='强密码' JWT_SECRET='随机串' bash -c "$(curl -sSL https://cdn.jsdelivr.net/gh/xihe41017/radio-song@main/deploy/install.sh)"
 ```
+
+### 📦 脚本自动完成
+
+```
+安装依赖(Python/Node) → 拉取代码 → 后端venv → 前端构建
+→ 写入管理员密码/JWT密钥 → 注册systemd服务(开机自启+崩溃重启)
+→ 可选Nginx反代 → 输出访问地址和密码
+```
+
+### 🔄 自动更新管理（后台可配置）
+
+部署后自带自动更新能力，**超管登录后台 → 系统设置 → 自动更新** 即可管理：
+
+- **开关**：启用后按设定间隔自动检查更新
+- **间隔**：每分钟 ~ 每天，自定义
+- **手动更新**：一键立即更新
+- **安全**：更新失败不影响当前运行；构建到临时目录、失败自动回滚
+
+部署完成后访问 `http://服务器IP:端口/`，管理员密码在脚本输出末尾，请立即保存。
 
 ## 📖 手动部署
 
