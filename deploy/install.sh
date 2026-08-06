@@ -25,8 +25,20 @@ DEFAULT_PORT="8001"
 DOMAIN="${DOMAIN:-_}"
 
 rand() { head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c "${1:-18}" || true; }
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(rand)}"
 JWT_SECRET="${JWT_SECRET:-$(rand 32)$(rand 32)}"
+
+# 交互式设置管理员密码（静默输入+确认；直接回车自动生成；env 变量 ADMIN_PASSWORD 可跳过）
+ask_password() {
+  local name="$1" p1 p2
+  [ -n "${ADMIN_PASSWORD:-}" ] && { echo "$ADMIN_PASSWORD"; return; }
+  while :; do
+    read -r -s -p "请设置${name}管理员密码（≥6位，直接回车自动生成）: " p1; echo
+    if [ -z "$p1" ]; then echo "$(rand 18)"; return; fi
+    read -r -s -p "请再次输入确认: " p2; echo
+    if [ "$p1" = "$p2" ] && [ "${#p1}" -ge 6 ]; then echo "$p1"; return; fi
+    warn "两次输入不一致或密码过短（需≥6位），请重试"
+  done
+}
 
 # ---------- 前置检查 ----------
 [ "$(id -u)" -eq 0 ] || err "请用 root 运行：sudo bash -c \"\$(curl ...)\""
@@ -56,6 +68,7 @@ choose_port() {
   PORT="$input"
 }
 choose_port
+ADMIN_PASSWORD="$(ask_password '点歌系统')"
 info "部署端口：$PORT"
 
 # ---------- 安装依赖 ----------

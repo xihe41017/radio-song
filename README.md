@@ -75,7 +75,7 @@ cd ../backend && .venv/Scripts/python run.py   # http://localhost:8001
 
 ## ⚡ 服务器一键部署（Linux）
 
-在 Linux 服务器上（需 root），一行命令即可部署点歌系统。部署过程中**会询问端口**（默认 8001）。
+在 Linux 服务器上（需 root），一行命令即可部署点歌系统。部署过程中**会交互式设置端口和管理员密码**（密码留空自动生成；默认端口 8001）。
 
 ```bash
 # 国内服务器推荐（jsdelivr CDN 加速）
