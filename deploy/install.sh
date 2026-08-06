@@ -55,6 +55,19 @@ info "  广播站点歌系统 一键部署"
 info "============================================"
 echo ""
 
+# ---------- 检查本地是否已在运行，是则先停止 ----------
+stop_if_running() {
+  local svc="$1" name="$2"
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q "^$svc\."; then
+    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+      info "检测到${name}服务正在运行，先停止（避免端口占用/部署冲突）..."
+      systemctl stop "$svc"
+      ok "${name}服务已停止"
+    fi
+  fi
+}
+stop_if_running "campus-radio" "点歌系统"
+
 # ---------- 选择端口 ----------
 choose_port() {
   local input="${PORT:-}"
