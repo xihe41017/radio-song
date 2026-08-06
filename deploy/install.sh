@@ -26,16 +26,18 @@ DOMAIN="${DOMAIN:-_}"
 
 rand() { head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c "${1:-18}" || true; }
 JWT_SECRET="${JWT_SECRET:-$(rand 32)$(rand 32)}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"   # 先初始化，避免 set -u 报错
 
-# 交互式设置管理员密码（静默输入+确认；直接回车自动生成；env 变量 ADMIN_PASSWORD 可跳过）
+# 交互式设置管理员密码（主 shell 直接读入，兼容 sudo/非交互场景）
 ask_password() {
   local name="$1" p1 p2
-  [ -n "${ADMIN_PASSWORD:-}" ] && { echo "$ADMIN_PASSWORD"; return; }
+  [ -n "$ADMIN_PASSWORD" ] && return   # 已用环境变量指定则跳过
+  ADMIN_PASSWORD=""
   while :; do
     read -r -s -p "请设置${name}管理员密码（≥6位，直接回车自动生成）: " p1; echo
-    if [ -z "$p1" ]; then echo "$(rand 18)"; return; fi
+    if [ -z "$p1" ]; then ADMIN_PASSWORD="$(rand 18)"; return; fi
     read -r -s -p "请再次输入确认: " p2; echo
-    if [ "$p1" = "$p2" ] && [ "${#p1}" -ge 6 ]; then echo "$p1"; return; fi
+    if [ "$p1" = "$p2" ] && [ "${#p1}" -ge 6 ]; then ADMIN_PASSWORD="$p1"; return; fi
     warn "两次输入不一致或密码过短（需≥6位），请重试"
   done
 }
@@ -68,7 +70,7 @@ choose_port() {
   PORT="$input"
 }
 choose_port
-ADMIN_PASSWORD="$(ask_password '点歌系统')"
+ask_password '点歌系统'
 info "部署端口：$PORT"
 
 # ---------- 安装依赖 ----------
@@ -138,8 +140,19 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable campus-radio >/dev/null 2>&1
-systemctl restart campus-radio
+systemctl enable campus-radio >/dev/null 2>&1 || true
+if ! systemctl restart campus-radio 2>&1; then
+  systemctl status campus-radio --no-pager -n 15 2>&1 | tail -20 || true
+  err "服务启动失败，请根据上方日志排查（systemctl status campus-radio）"
+fi
+sleep 3
+if ! systemctl is-active --quiet campus-radio; then
+  warn "服务未正常运行，错误信息如下："
+  systemctl status campus-radio --no-pager -n 15 2>&1 | tail -20 || true
+  journalctl -u campus-radio --no-pager -n 20 2>/dev/null | tail -20 || true
+  err "请根据上方日志排查（systemctl status campus-radio）"
+fi
+ok "服务已启动"
 
 # ---------- 自动更新（每分钟 cron 检查，失败不影响当前服务） ----------
 setup_autoupdate() {
@@ -240,22 +253,35 @@ fi
 
 # ---------- 防火墙 ----------
 command -v ufw >/dev/null 2>&1 && ufw allow "$PORT"/tcp >/dev/null 2>&1 || true
+command -v firewall-cmd >/dev/null 2>&1 && { firewall-cmd --permanent --add-port="$PORT"/tcp >/dev/null 2>&1 || true; firewall-cmd --reload >/dev/null 2>&1 || true; }
 
 # ---------- 结果 ----------
 sleep 2
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/" || true)
+LISTEN=$(ss -ltn 2>/dev/null | grep -c ":$PORT " || echo "0")
 echo ""
 ok "============================================"
 ok "  点歌系统部署完成！"
 ok "============================================"
 echo ""
-echo -e "  访问地址：${C_Y}http://服务器IP:$PORT/${C_0}   (状态: $STATUS)"
+echo -e "  访问地址：${C_Y}http://服务器IP:$PORT/${C_0}"
 [ "${ng:-n}" = "y" ] || [ "${ng:-n}" = "Y" ] && echo -e "  也可以：${C_Y}http://服务器IP/${C_0}"
 echo ""
 echo -e "  管理员：${C_B}admin${C_0} / ${C_G}$ADMIN_PASSWORD${C_0}"
 echo ""
 warn "请立即保存上面的密码！"
-echo "  常用命令："
-echo "    systemctl status campus-radio"
-echo "    systemctl restart campus-radio"
+
+if [ "$STATUS" != "200" ]; then
+  echo ""
+  warn "⚠️ 本机访问 $PORT 返回状态 $STATUS（端口监听: $LISTEN），请按下面排查："
+  echo "  1. 服务状态：systemctl status campus-radio"
+  echo "  2. 服务日志：journalctl -u campus-radio -n 50 --no-pager"
+  echo "  3. 云服务器控制台 → 安全组 → 入方向规则：放行 TCP $PORT 端口"
+  echo "     （阿里云/腾讯云/华为云的安全组是在系统外拦的，脚本无法自动放行）"
+else
+  echo ""
+  echo "  常用命令："
+  echo "    systemctl status campus-radio"
+  echo "    systemctl restart campus-radio"
+fi
 echo ""
