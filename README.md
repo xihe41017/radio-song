@@ -1,99 +1,102 @@
+<div align="center">
+
 # 📻 广播站点歌系统
 
-面向校园广播站的在线点歌系统：听众搜索网易云音乐点歌，广播站管理员在后台标记播放状态。
+**把你想听的歌，点给广播站** · 校园广播站在线点歌
 
-- **前端**：Vue 3 + Vite（暗色电台主题、发光动效、移动端适配）
-- **后端**：Python FastAPI + SQLite（网易云搜索、IP 防刷、独立管理员）
-- **网易云音乐**：走公开网页搜索接口，无需登录
+![Vue 3](https://img.shields.io/badge/Vue%203-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![网易云音乐](https://img.shields.io/badge/%E7%BD%91%E6%98%93%E4%BA%91%E9%9F%B3%E4%B9%90-C20D0D?style=for-the-badge)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-## 功能
+接入网易云音乐搜索的校园广播站点歌系统：听众搜歌点歌，广播站后台管理播放。
 
-### 听众端
+</div>
+
+---
+
+## ✨ 功能亮点
+
+### 🎧 听众端
 | 功能 | 说明 |
 | --- | --- |
-| 搜索点歌 | 接入网易云音乐搜索，**点击歌曲弹出确认弹窗**（填昵称点歌） |
-| 匿名点歌 | 无需注册，昵称可不填（显示「匿名听众」） |
-| 待播队列 | 首页显示排队中的歌曲（第一首高亮「下一首」） |
-| 已播历史 | 首页展示最近播放过的歌曲 |
-| 防刷限制 | **单个 IP 最多同时点 3 首**（待播放），播完释放名额，可后台调整；**登录管理员不限** |
-| 成功提示 | 点歌成功后弹窗显示「已加入待播队列」 |
+| 🔍 网易云搜索 | 接入网易云音乐搜索接口，展示歌名/歌手/专辑/封面/时长 |
+| 🎵 点歌弹窗 | 点击歌曲弹出确认弹窗（可填昵称，支持匿名） |
+| 📃 待播队列 + 已播历史 | 首页实时展示排队歌曲与最近播放记录 |
+| 🛡️ 单 IP 防刷 | 同一 IP 最多同时点 3 首，播完释放名额（后台可调） |
+| 👑 管理员不限 | 登录管理员点歌无上限 |
 
-### 管理端（`/admin`，独立账号体系）
-- **点歌管理**：待播放 / 已播放 / 全部 三视图，显示点歌人 IP，标记已播放、删除
-- **系统设置**：修改站点名称、**单个 IP 点歌数**（限速/JWT密钥仅超管）
-- **账号管理**（仅超管）：**新建管理员**、改角色、单独授予/收回每个用户的权限（仿表白墙权限体系）、重置密码、删除
-- 修改自己的密码
+### ⚙️ 广播站管理端（`/admin`）
+| 功能 | 说明 |
+| --- | --- |
+| 🎵 点歌管理 | 待播放 / 已播放 / 全部三视图，一键标记已播、删除 |
+| ⚙️ 系统设置 | 修改站点名、**单 IP 点歌数**、各接口限速（仅超管） |
+| 👥 账号管理 | **新建管理员**、改角色、按权限单独授予/收回（仅超管） |
+| 🔑 修改密码 | 独立管理员账号体系，与其它项目无关 |
 
-> 管理入口统一走 `/admin`，页面不显示管理按钮。
+## 🧱 技术栈
 
-## 目录结构
+| 层 | 技术 |
+| --- | --- |
+| 前端 | Vue 3 · Vite（暗色电台主题 · 转盘/均衡器动效） |
+| 后端 | Python · FastAPI |
+| 数据库 | SQLite |
+| 音乐数据 | 网易云音乐公开搜索接口 |
+| 安全 | JWT · 权限体系 · IP 防刷 |
 
-```
-radio-song/
-├── backend/
-│   ├── app/
-│   │   ├── main.py          # 入口（含生产静态托管）
-│   │   ├── netease.py       # 网易云搜索 + 封面（尽力而为+缓存）
-│   │   ├── models.py        # SongRequest / Admin / Setting
-│   │   ├── routers/         # songs / requests / admin
-│   │   └── ...
-│   ├── data/radio.db
-│   ├── requirements.txt
-│   └── run.py               # 端口 8001
-└── frontend/                # Vue 3
-    ├── src/views/           # Home / Request / Admin
-    └── vite.config.js       # 代理 /api → 8001
-```
+## 🚀 快速开始
 
-## 本地运行
+需要 Python 3.10+ 和 Node.js 18+。
 
 ```bash
-# 后端（终端 1）
+# 1. 启动后端
 cd backend
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python run.py        # http://localhost:8001
+.venv/Scripts/python run.py          # http://localhost:8001
 
-# 前端（终端 2）
+# 2. 启动前端（开发模式）
 cd frontend
 npm install
-npm run dev                        # http://localhost:5173
+npm run dev                          # http://localhost:5173
 ```
 
-## 生产运行（单进程）
+> 默认管理员：`admin / admin123`，首次启动自动创建，**上线前务必修改**！
+
+### 生产运行（单进程）
 
 ```bash
 cd frontend && npm run build
 cd ../backend && .venv/Scripts/python run.py   # http://localhost:8001
 ```
 
-后端检测到 `frontend/dist/` 后自动托管前端，单个进程即可运行。
-
-## 部署到服务器
+## 📖 部署到服务器
 
 ```bash
-# 服务器需 Python 3.10+
-cd backend
+cd radio-song/backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-ADMIN_PASSWORD='强密码' nohup .venv/bin/python run.py > server.log 2>&1 &
+ADMIN_PASSWORD='强密码' JWT_SECRET='随机长字符串' nohup .venv/bin/python run.py > server.log 2>&1 &
 
-# Nginx 反代
+# Nginx 反代（必须设置 X-Forwarded-For，否则单 IP 防刷失效）
 server {
     listen 80;
     server_name 你的域名;
     location / {
         proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $remote_addr;   # 关键：IP 防刷识别
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
 ```
 
-> **注意**：`X-Forwarded-For` 必须设置，否则所有点歌都算作 127.0.0.1，单 IP 3 首限制会立刻触发。
+### ⚠️ 关于网易云搜索与封面
+- 使用网易云公开网页接口，受其频控影响，搜索偶尔会提示「稍后再试」
+- 专辑封面接口有频控，采用「尽力获取 + 缓存」策略，拿不到时用 🎵 占位图兜底
 
-## 说明
-- **网易云搜索**：使用公开网页接口，可能受网易频控影响；搜索失败会提示「稍后再试」。
-- **封面**：网易云专辑接口有频控，封面「尽力而为」获取并缓存；拿不到时前端用 🎵 占位图兜底。
-- **管理员**：默认 `admin / admin123`，登录后请在管理端立即修改密码。
-- 环境变量：`ADMIN_USERNAME` / `ADMIN_PASSWORD` / `JWT_SECRET` / `CORS_ORIGINS`。
+## 📜 开源许可
+
+本项目基于 [MIT License](LICENSE) 开源，欢迎学习、使用与二次开发。
