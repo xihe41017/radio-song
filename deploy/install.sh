@@ -141,6 +141,64 @@ systemctl daemon-reload
 systemctl enable campus-radio >/dev/null 2>&1
 systemctl restart campus-radio
 
+# ---------- 自动更新（每分钟 cron 检查，失败不影响当前服务） ----------
+setup_autoupdate() {
+  local svc="$1" repo="$2" port="$3" name="$4"
+  cat > "/usr/local/bin/campus-$name-update.sh" <<'UPDATE_EOF'
+#!/usr/bin/env bash
+# 自动更新（每分钟由 cron 调用；任何一步失败都保持当前版本，不影响正在运行的服务）
+set -uo pipefail
+REPO_DIR="__REPO__"
+SERVICE="__SERVICE__"
+PORT="__PORT__"
+LOG="/var/log/campus-__NAME__-update.log"
+exec 9>/tmp/campus-__NAME__-update.lock || exit 0
+flock -n 9 2>/dev/null || exit 0   # 避免并发更新
+log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
+cd "$REPO_DIR" || exit 0
+# 1. 检查远程是否有新提交（网络失败跳过，不影响当前）
+git fetch origin --quiet 2>/dev/null || { log "git fetch 失败（网络），跳过本次"; exit 0; }
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+[ "$LOCAL" = "$REMOTE" ] && exit 0   # 无更新
+# 2. 只看是否改动了代码文件；仅文档类更新直接同步
+CHANGED=$(git diff --name-only "$LOCAL" "$REMOTE" | grep -E '^(frontend/|backend/)' || true)
+if [ -z "$CHANGED" ]; then
+  git pull --ff-only --quiet 2>/dev/null && log "文档类更新，已同步代码（无需重启）"
+  exit 0
+fi
+log "检测到更新：$LOCAL → $REMOTE"
+PREV="$LOCAL"
+# 3. 拉取（失败则保持当前）
+git pull --ff-only --quiet 2>/dev/null || { log "git pull 失败，保持当前版本"; exit 0; }
+# 4. 后端依赖（失败则保持当前）
+cd "$REPO_DIR/backend"
+.venv/bin/pip install --quiet -r requirements.txt 2>/dev/null || { log "依赖安装失败，保持当前版本"; exit 0; }
+# 5. 前端构建到临时目录（失败则保持当前，旧 dist 仍被服务）
+cd "$REPO_DIR/frontend"
+npm install --no-audit --no-fund --silent 2>/dev/null || { log "npm install 失败，保持当前版本"; exit 0; }
+npm run build -- --outDir dist.tmp >/dev/null 2>&1 || { log "前端构建失败，保持当前版本"; rm -rf dist.tmp; exit 0; }
+rm -rf dist && mv dist.tmp dist
+# 6. 重启并健康检查（失败回滚到上一版本）
+systemctl restart "$SERVICE" 2>/dev/null || { log "服务重启失败"; exit 0; }
+sleep 3
+if ! curl -sf "http://127.0.0.1:$PORT/" >/dev/null 2>&1; then
+  log "健康检查失败，回滚到 $PREV"
+  git reset --hard "$PREV" >/dev/null 2>&1
+  cd "$REPO_DIR/frontend" && npm run build >/dev/null 2>&1
+  systemctl restart "$SERVICE" 2>/dev/null || true
+else
+  log "更新完成 → $REMOTE"
+fi
+UPDATE_EOF
+  sed -i "s|__REPO__|$repo|g; s|__SERVICE__|$svc|g; s|__PORT__|$port|g; s|__NAME__|$name|g" "/usr/local/bin/campus-$name-update.sh"
+  chmod +x "/usr/local/bin/campus-$name-update.sh"
+  echo "* * * * * root /usr/local/bin/campus-$name-update.sh" > "/etc/cron.d/campus-$name"
+  info "已配置自动更新：每分钟检查一次（失败不影响当前服务）"
+}
+
+setup_autoupdate "campus-radio" "$APP_DIR" "$PORT" "radio"
+
 # ---------- 可选 Nginx ----------
 if command -v nginx >/dev/null 2>&1; then
   read -r -p "是否配置 Nginx：80 端口反向代理到 $PORT ？（y/N）: " ng
