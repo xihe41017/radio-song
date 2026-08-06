@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api } from '../../api'
-import { toastSuccess, toastError } from '../../store/toast'
+import { toastSuccess, toastError, toastInfo } from '../../store/toast'
 
 const props = defineProps({
   isSuper: { type: Boolean, default: false },
@@ -13,6 +13,48 @@ const loading = ref(false)
 const saving = ref({})
 const pwd = reactive({ old_password: '', new_password: '' })
 const pwdMsg = ref('')
+
+// 自动更新（仅超管）
+const au = ref(null)
+const auSaving = ref(false)
+const auRunning = ref(false)
+
+async function loadAutoUpdate() {
+  if (!props.isSuper) return
+  try {
+    au.value = await api.autoUpdateStatus()
+  } catch (e) {
+    toastError(e.message)
+  }
+}
+
+async function saveAutoUpdate() {
+  if (!au.value) return
+  auSaving.value = true
+  try {
+    au.value = await api.autoUpdateSet(au.value.enabled, Number(au.value.interval))
+    toastSuccess('自动更新设置已保存')
+  } catch (e) {
+    toastError(e.message)
+  } finally {
+    auSaving.value = false
+  }
+}
+
+async function runAutoUpdate() {
+  if (!au.value) return
+  if (au.value.updating) return toastInfo('正在更新中，请稍候')
+  auRunning.value = true
+  try {
+    au.value = await api.autoUpdateRun()
+    toastInfo(au.value.last_result)
+    setTimeout(loadAutoUpdate, 3000)
+  } catch (e) {
+    toastError(e.message)
+  } finally {
+    auRunning.value = false
+  }
+}
 
 const LABELS = {
   site_name: '站点名称',
@@ -68,7 +110,10 @@ async function savePassword() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadAutoUpdate()
+})
 </script>
 
 <template>
@@ -100,6 +145,40 @@ onMounted(load)
         </div>
       </div>
     </div>
+
+    <!-- 自动更新（仅超管） -->
+    <template v-if="props.isSuper">
+      <h3 class="sub-title">🔄 自动更新</h3>
+      <div v-if="au" class="auto-update-card">
+        <div class="setting-item">
+          <div class="setting-name-row">
+            <span class="setting-name">自动更新</span>
+            <span v-if="au.script_exists" class="sensitive-badge">服务器环境可用</span>
+            <span v-else class="lock-badge">仅服务器部署环境可用</span>
+            <span v-if="au.updating" class="au-updating">⏳ 更新中…</span>
+          </div>
+          <p class="setting-desc">检查 GitHub 是否有新代码，有则自动拉取构建并重启；任何一步失败都保持当前版本。</p>
+          <div class="setting-control au-control">
+            <label class="anon-switch">
+              <input v-model="au.enabled" type="checkbox" />
+              <span class="anon-switch-slider"></span>
+              <span class="anon-switch-label">启用自动更新</span>
+            </label>
+            <div class="au-interval">
+              <input v-model="au.interval" class="input setting-input" type="number" min="1" max="1440" />
+              <span class="au-unit">分钟检查一次</span>
+            </div>
+            <button class="btn-primary btn-sm" :disabled="auSaving" @click="saveAutoUpdate">保存规则</button>
+          </div>
+          <div class="au-status">
+            <span>最近结果：{{ au.last_result || '尚未执行' }}</span>
+            <button class="btn-play" :disabled="auRunning || au.updating" @click="runAutoUpdate">
+              {{ auRunning ? '启动中…' : '⚡ 立即更新' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <h3 class="sub-title">🔑 修改我的密码</h3>
     <div class="pwd-card">

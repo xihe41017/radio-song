@@ -13,6 +13,7 @@ from app.database import Base, SessionLocal, engine, run_migrations
 from app.models import Admin, Setting  # noqa: F401 确保建表前已加载
 from app.ratelimit import limiter
 from app.routers import admin, requests, settings as settings_router, songs, users
+from app.routers.auto_update import router as auto_update_router
 from app.security import hash_password
 from app.settings_service import service as settings_service
 
@@ -43,6 +44,8 @@ async def lifespan(app: FastAPI):
     db.commit()
     settings_service.warm(db)
     db.close()
+    import app.auto_update as auto_update
+    auto_update.start_scheduler()
     yield
 
 
@@ -63,6 +66,7 @@ app.include_router(requests.router)
 app.include_router(admin.router)
 app.include_router(settings_router.router)
 app.include_router(users.router)
+app.include_router(auto_update_router)
 
 
 @app.get("/api/health")

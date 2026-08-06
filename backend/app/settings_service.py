@@ -29,6 +29,9 @@ class SettingsService:
         except (TypeError, ValueError):
             return default
 
+    def get_bool(self, db: Session, key: str, default: bool = False) -> bool:
+        return self.get(db, key, "1" if default else "0") in ("1", "true", "True", "yes")
+
     def get_cached(self, key: str, default: str = None) -> str:
         value = self._cache.get(key)
         return default if value is None else str(value)

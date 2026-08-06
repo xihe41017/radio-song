@@ -41,6 +41,11 @@ export const api = {
   adminSettings: () => request('/admin/settings', { headers: authHeader() }),
   adminUpdateSetting: (key, value) => request(`/admin/settings/${key}`, { method: 'PUT', body: { value }, headers: authHeader() }),
 
+  // 自动更新（仅超管）
+  autoUpdateStatus: () => request('/admin/auto-update', { headers: authHeader() }),
+  autoUpdateSet: (enabled, interval) => request('/admin/auto-update', { method: 'PUT', body: { enabled, interval }, headers: authHeader() }),
+  autoUpdateRun: () => request('/admin/auto-update/run', { method: 'POST', headers: authHeader() }),
+
   // 账号管理（超管）
   adminUsers: () => request('/admin/users', { headers: authHeader() }),
   adminCreateUser: (data) => request('/admin/users', { method: 'POST', body: data, headers: authHeader() }),

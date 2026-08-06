@@ -20,6 +20,10 @@ class Settings:
         "http://localhost:5173,http://127.0.0.1:5173",
     ).split(",")
 
+    # 自动更新（部署脚本生成更新脚本；Windows 开发环境不可用）
+    UPDATE_SCRIPT = os.getenv("UPDATE_SCRIPT", "/usr/local/bin/campus-radio-update.sh")
+    UPDATE_STATE = os.getenv("UPDATE_STATE", "/var/log/campus-radio-update.state")
+
 
 settings = Settings()
 
@@ -31,5 +35,7 @@ DEFAULT_SETTINGS = [
     ("rate_search", "20", "搜索接口限速(次/分钟)", 1),
     ("rate_request", "3", "点歌接口限速(次/分钟)", 1),
     ("rate_login", "10", "管理员登录限速(次/分钟)", 1),
+    ("auto_update_enabled", "0", "自动更新开关（仅超管）", 1),
+    ("auto_update_interval", "5", "自动更新检查间隔(分钟)（仅超管）", 1),
     ("jwt_secret", settings.JWT_SECRET, "JWT签名密钥（修改后管理员需重新登录）", 1),
 ]

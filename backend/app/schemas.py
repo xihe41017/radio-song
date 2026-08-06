@@ -104,6 +104,20 @@ class SettingUpdate(BaseModel):
     value: str = Field(..., max_length=500)
 
 
+class AutoUpdateIn(BaseModel):
+    enabled: bool = False
+    interval: int = Field(5, ge=1, le=1440)
+
+
+class AutoUpdateOut(BaseModel):
+    enabled: bool = False
+    interval: int = 5
+    script_exists: bool = False
+    updating: bool = False
+    last_result: str = ""
+    last_run_at: Optional[float] = None
+
+
 class QuotaOut(BaseModel):
     remaining: int   # 该 IP 还能点几首
     limit: int

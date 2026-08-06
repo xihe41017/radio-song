@@ -51,3 +51,10 @@ def require_perm(key: str):
             raise HTTPException(status_code=403, detail="没有该操作权限")
         return admin
     return dep
+
+
+def require_super_admin(admin: Admin = Depends(require_admin)) -> Admin:
+    """仅超级管理员。"""
+    if admin.role != "super_admin":
+        raise HTTPException(status_code=403, detail="需要超级管理员权限")
+    return admin
