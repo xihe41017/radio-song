@@ -114,7 +114,7 @@ onMounted(loadQuota)
         <input
           v-model="keyword"
           class="search-input"
-          placeholder="输入歌名 / 歌手，如：周杰伦 晴天"
+          placeholder="输入歌名 / 歌手"
           @keyup.enter="search"
         />
         <button class="btn-primary" :disabled="searching" @click="search">
