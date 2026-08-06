@@ -108,21 +108,34 @@ if ! command -v node >/dev/null 2>&1 || [ "$(node -v | tr -dc '0-9' | cut -c1-2)
 fi
 node -v >/dev/null 2>&1 || err "Node.js 安装失败"
 
-# ---------- 拉取代码 ----------
-info "拉取项目代码..."
+# ---------- 拉取代码（确保最新） ----------
+info "拉取项目代码（确保最新）..."
 mkdir -p /opt
 cd /opt
-[ -d "$REPO" ] || git clone --depth 1 "https://github.com/$GIT_USER/$REPO.git"
+if [ -d "$REPO/.git" ]; then
+  cd "$APP_DIR"
+  git fetch origin --depth 1 2>/dev/null
+  if ! git reset --hard origin/main 2>/dev/null; then
+    warn "代码更新失败，重新克隆..."
+    cd /opt && rm -rf "$REPO" && git clone --depth 1 "https://github.com/$GIT_USER/$REPO.git"
+  fi
+else
+  git clone --depth 1 "https://github.com/$GIT_USER/$REPO.git"
+fi
 cd "$APP_DIR"
-git pull --ff-only >/dev/null 2>&1 || true
 
 # ---------- 后端 + 前端 ----------
 info "配置后端环境..."
 cd "$APP_DIR/backend"
 mkdir -p "$APP_DIR/backend/data"   # 数据库目录（被 gitignore，需手动创建）
 python3 -m venv .venv
-.venv/bin/pip install --quiet --upgrade pip
-.venv/bin/pip install --quiet -r requirements.txt
+# 使用可靠的 pip 镜像（清华源，国内快且同步最新；可用 PIP_INDEX 覆盖）
+PIP_INDEX="${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+.venv/bin/pip install --index-url "$PIP_INDEX" --upgrade pip 2>/dev/null || true
+.venv/bin/pip install --index-url "$PIP_INDEX" --quiet -r requirements.txt || {
+  warn "清华源安装失败，改用官方 PyPI 重试..."
+  .venv/bin/pip install --quiet -r requirements.txt
+}
 
 info "构建前端..."
 cd "$APP_DIR/frontend"
@@ -204,7 +217,8 @@ PREV="$LOCAL"
 git pull --ff-only --quiet 2>/dev/null || { setstate fail "git pull 失败，保持当前"; exit 0; }
 # 4. 后端依赖（失败则保持当前）
 cd "$REPO_DIR/backend"
-.venv/bin/pip install --quiet -r requirements.txt 2>/dev/null || { setstate fail "依赖安装失败，保持当前"; exit 0; }
+PIP_INDEX="${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+.venv/bin/pip install --index-url "$PIP_INDEX" --quiet -r requirements.txt 2>/dev/null || { setstate fail "依赖安装失败，保持当前"; exit 0; }
 # 5. 前端构建到临时目录（失败则保持当前，旧 dist 仍被服务）
 cd "$REPO_DIR/frontend"
 npm install --no-audit --no-fund --silent 2>/dev/null || { setstate fail "npm install 失败，保持当前"; exit 0; }
