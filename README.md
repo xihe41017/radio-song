@@ -73,7 +73,26 @@ cd frontend && npm run build
 cd ../backend && .venv/Scripts/python run.py   # http://localhost:8001
 ```
 
-## 📖 部署到服务器
+## ⚡ 服务器一键部署（Linux）
+
+在 Linux 服务器上（需 root），一行命令即可部署点歌系统。部署过程中**会询问端口**（默认 8001）。
+
+```bash
+# 国内服务器推荐（jsdelivr CDN 加速）
+bash -c "$(curl -sSL https://cdn.jsdelivr.net/gh/xihe41017/radio-song@main/deploy/install.sh)"
+
+# 海外服务器
+bash -c "$(curl -sSL https://raw.githubusercontent.com/xihe41017/radio-song/main/deploy/install.sh)"
+```
+
+脚本会自动：装依赖（Python/Node）→ 拉取项目 → 构建 → 生成管理员密码 → 注册 systemd 守护进程 → 可选 Nginx 反代。支持 Ubuntu / Debian / CentOS。
+
+```bash
+# 自定义端口 / 密码 / 域名（可选）
+PORT=8081 ADMIN_PASSWORD='强密码' JWT_SECRET='随机串' bash -c "$(curl -sSL https://cdn.jsdelivr.net/gh/xihe41017/radio-song@main/deploy/install.sh)"
+```
+
+## 📖 手动部署
 
 ```bash
 cd radio-song/backend
