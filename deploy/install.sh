@@ -234,7 +234,10 @@ cd "$REPO_DIR" || exit 0
 git fetch origin --quiet 2>/dev/null || { setstate fail "git fetch 失败（网络）"; exit 0; }
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
-[ "$LOCAL" = "$REMOTE" ] && exit 0   # 无更新
+if [ "$LOCAL" = "$REMOTE" ]; then
+  setstate ok "已是最新版本，无需更新"
+  exit 0
+fi   # 无更新
 # 2. 只看是否改动了代码文件；仅文档类更新直接同步
 CHANGED=$(git diff --name-only "$LOCAL" "$REMOTE" | grep -E '^(frontend/|backend/)' || true)
 if [ -z "$CHANGED" ]; then
