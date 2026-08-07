@@ -124,18 +124,50 @@ else
 fi
 cd "$APP_DIR"
 
+# ---------- pip 镜像源选择（阿里云自动用阿里源，其他默认清华源，可用 PIP_INDEX 覆盖） ----------
+detect_pip_index() {
+  [ -n "${PIP_INDEX:-}" ] && { echo "$PIP_INDEX"; return; }
+  if [ -f /etc/os-release ] && grep -qiE 'Alibaba Cloud Linux|Aliyun Linux|Anolis' /etc/os-release; then
+    echo "https://mirrors.aliyun.com/pypi/simple"
+  elif [ -f /etc/redhat-release ] && grep -qi 'Alibaba Cloud' /etc/redhat-release; then
+    echo "https://mirrors.aliyun.com/pypi/simple"
+  else
+    echo "https://pypi.tuna.tsinghua.edu.cn/simple"
+  fi
+}
+PIP_INDEX="$(detect_pip_index)"
+info "使用 pip 镜像源：$PIP_INDEX"
+
+# ---------- 虚拟环境完整性检查（缺失/损坏自动重建） ----------
+ensure_venv() {
+  cd "$APP_DIR/backend"
+  mkdir -p "$APP_DIR/backend/data"   # 数据库目录（被 gitignore，需手动创建）
+  if [ ! -x ".venv/bin/python" ] || ! .venv/bin/python -c 'import sys' >/dev/null 2>&1; then
+    warn "虚拟环境缺失或损坏，自动重建..."
+    rm -rf .venv
+    python3 -m venv .venv || err "虚拟环境创建失败，请确认已安装 python3-venv"
+  fi
+  # 虚拟环境缺 pip 时先尝试 ensurepip 引导，再失败则装系统 python3-pip 后重建
+  if [ ! -x ".venv/bin/pip" ] && ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+    warn "虚拟环境缺少 pip，尝试引导安装..."
+    .venv/bin/python -m ensurepip --default-pip >/dev/null 2>&1 || {
+      warn "ensurepip 引导失败，安装系统 python3-pip 后重建虚拟环境..."
+      if [ "$PKG" = "apt" ]; then apt-get install -y -qq python3-pip >/dev/null; else yum install -y -q python3-pip >/dev/null; fi
+      rm -rf .venv && python3 -m venv .venv
+    }
+  fi
+  .venv/bin/python -m pip --version >/dev/null 2>&1 \
+    || err "虚拟环境仍不可用，请手动执行：cd $APP_DIR/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+}
+
 # ---------- 后端 + 前端 ----------
 info "配置后端环境..."
-cd "$APP_DIR/backend"
-mkdir -p "$APP_DIR/backend/data"   # 数据库目录（被 gitignore，需手动创建）
-python3 -m venv .venv
-# 使用可靠的 pip 镜像（清华源，国内快且同步最新；可用 PIP_INDEX 覆盖）
-PIP_INDEX="${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+ensure_venv
 .venv/bin/pip install --index-url "$PIP_INDEX" --upgrade pip 2>/dev/null || true
-.venv/bin/pip install --index-url "$PIP_INDEX" --quiet -r requirements.txt || {
-  warn "清华源安装失败，改用官方 PyPI 重试..."
+if ! .venv/bin/pip install --index-url "$PIP_INDEX" --quiet -r requirements.txt; then
+  warn "$PIP_INDEX 安装失败，改用官方 PyPI 重试..."
   .venv/bin/pip install --quiet -r requirements.txt
-}
+fi
 
 info "构建前端..."
 cd "$APP_DIR/frontend"
@@ -217,8 +249,16 @@ PREV="$LOCAL"
 git pull --ff-only --quiet 2>/dev/null || { setstate fail "git pull 失败，保持当前"; exit 0; }
 # 4. 后端依赖（失败则保持当前）
 cd "$REPO_DIR/backend"
-PIP_INDEX="${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}"
-.venv/bin/pip install --index-url "$PIP_INDEX" --quiet -r requirements.txt 2>/dev/null || { setstate fail "依赖安装失败，保持当前"; exit 0; }
+# 虚拟环境缺失/损坏则自动重建（与主安装脚本逻辑一致）
+if [ ! -x ".venv/bin/python" ] || ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+  log "虚拟环境缺失/损坏，自动重建..."
+  rm -rf .venv && python3 -m venv .venv || { setstate fail "venv 重建失败，保持当前"; exit 0; }
+fi
+PIP_INDEX="__PIP_INDEX__"
+if ! .venv/bin/pip install --index-url "$PIP_INDEX" --quiet -r requirements.txt 2>/dev/null; then
+  log "镜像 $PIP_INDEX 安装失败，改用官方 PyPI 重试..."
+  .venv/bin/pip install --quiet -r requirements.txt 2>/dev/null || { setstate fail "依赖安装失败，保持当前"; exit 0; }
+fi
 # 5. 前端构建到临时目录（失败则保持当前，旧 dist 仍被服务）
 cd "$REPO_DIR/frontend"
 npm install --no-audit --no-fund --silent 2>/dev/null || { setstate fail "npm install 失败，保持当前"; exit 0; }
@@ -238,7 +278,7 @@ else
   setstate ok "更新完成 → ${REMOTE:0:8}"
 fi
 UPDATE_EOF
-  sed -i "s|__REPO__|$repo|g; s|__SERVICE__|$svc|g; s|__PORT__|$port|g; s|__NAME__|$name|g" "/usr/local/bin/campus-$name-update.sh"
+  sed -i "s|__REPO__|$repo|g; s|__SERVICE__|$svc|g; s|__PORT__|$port|g; s|__NAME__|$name|g; s|__PIP_INDEX__|$PIP_INDEX|g" "/usr/local/bin/campus-$name-update.sh"
   chmod +x "/usr/local/bin/campus-$name-update.sh"
   # 更新调度由后端负责（后台可设开关/间隔/手动更新），这里只生成更新脚本
   info "已生成更新脚本（后台可配置自动更新规则）"
