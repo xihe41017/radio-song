@@ -24,6 +24,10 @@ class Settings:
     UPDATE_SCRIPT = os.getenv("UPDATE_SCRIPT", "/usr/local/bin/campus-radio-update.sh")
     UPDATE_STATE = os.getenv("UPDATE_STATE", "/var/log/campus-radio-update.state")
 
+    # Nginx 域名解析（后台可配置；Windows 开发环境仅预览）
+    NGINX_DOMAINS_FILE = os.getenv("NGINX_DOMAINS_FILE", "/etc/campus/radio-domains.json")
+    NGINX_CONF_FILE = os.getenv("NGINX_CONF_FILE", "/etc/nginx/conf.d/campus-radio-domains.conf")
+
 
 settings = Settings()
 

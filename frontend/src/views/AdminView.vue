@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { api } from '../api'
 import ContentTab from '../components/admin/ContentTab.vue'
+import NginxTab from '../components/admin/NginxTab.vue'
 import SettingsTab from '../components/admin/SettingsTab.vue'
 import UsersTab from '../components/admin/UsersTab.vue'
 
@@ -18,6 +19,7 @@ const isSuper = () => me.value?.role === 'super_admin'
 const TABS = [
   { key: 'content', label: '🎵 点歌管理' },
   { key: 'settings', label: '⚙️ 系统设置' },
+  { key: 'nginx', label: '🌐 域名解析', super: true },
   { key: 'users', label: '👥 账号管理', super: true },
 ]
 const visibleTabs = () => TABS.filter((t) => !t.super || isSuper())
@@ -94,6 +96,7 @@ onMounted(async () => {
 
       <ContentTab v-if="tab === 'content'" />
       <SettingsTab v-else-if="tab === 'settings'" :is-super="isSuper()" :perms="me?.permissions || []" />
+      <NginxTab v-else-if="tab === 'nginx'" />
       <UsersTab v-else-if="tab === 'users'" />
     </div>
   </div>

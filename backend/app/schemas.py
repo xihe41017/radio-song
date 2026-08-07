@@ -121,3 +121,26 @@ class AutoUpdateOut(BaseModel):
 class QuotaOut(BaseModel):
     remaining: int   # 该 IP 还能点几首
     limit: int
+
+
+class NginxDomainIn(BaseModel):
+    domain: str = Field(..., max_length=253)
+    ssl_cert: str = Field("", max_length=500)
+    ssl_key: str = Field("", max_length=500)
+
+
+class NginxDomainOut(BaseModel):
+    domain: str
+    ssl_cert: str = ""
+    ssl_key: str = ""
+
+
+class NginxStatusOut(BaseModel):
+    is_server: bool = False
+    nginx_installed: bool = False
+    nginx_active: bool = False
+    port: int = 8001
+    domains_file: str = ""
+    conf_file: str = ""
+    domains: List[NginxDomainOut] = []
+    preview: str = ""

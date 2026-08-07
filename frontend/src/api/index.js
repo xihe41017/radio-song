@@ -46,6 +46,12 @@ export const api = {
   autoUpdateSet: (enabled, interval) => request('/admin/auto-update', { method: 'PUT', body: { enabled, interval }, headers: authHeader() }),
   autoUpdateRun: () => request('/admin/auto-update/run', { method: 'POST', headers: authHeader() }),
 
+  // Nginx 域名解析（仅超管）
+  nginxStatus: () => request('/admin/nginx', { headers: authHeader() }),
+  nginxInstall: () => request('/admin/nginx/install', { method: 'POST', headers: authHeader() }),
+  nginxAddDomain: (data) => request('/admin/nginx/domains', { method: 'POST', body: data, headers: authHeader() }),
+  nginxRemoveDomain: (domain) => request(`/admin/nginx/domains/${encodeURIComponent(domain)}`, { method: 'DELETE', headers: authHeader() }),
+
   // 账号管理（超管）
   adminUsers: () => request('/admin/users', { headers: authHeader() }),
   adminCreateUser: (data) => request('/admin/users', { method: 'POST', body: data, headers: authHeader() }),
