@@ -43,4 +43,5 @@ DEFAULT_SETTINGS = [
     ("auto_update_enabled", "0", "自动更新开关（仅超管）", 1),
     ("auto_update_interval", "5", "自动更新检查间隔(分钟)（仅超管）", 1),
     ("jwt_secret", settings.JWT_SECRET, "JWT签名密钥（修改后管理员需重新登录）", 1),
+    ("neteast_proxy", "", "网易云搜索代理地址(如 http://127.0.0.1:7890，留空直连；服务器被反爬时填)", 1),
 ]

@@ -63,6 +63,7 @@ const LABELS = {
   rate_request: '点歌限速',
   rate_login: '登录限速',
   jwt_secret: 'JWT 密钥',
+  neteast_proxy: '网易云搜索代理',
 }
 
 // 该设置当前管理员能否编辑

@@ -15,5 +15,7 @@ def search_songs(
 ):
     try:
         return netease.search_songs(q.strip(), limit)
-    except Exception:
-        raise HTTPException(status_code=502, detail="网易云音乐搜索暂时不可用，请稍后再试")
+    except netease.NeteaseError as e:
+        raise HTTPException(status_code=502, detail=f"网易云音乐搜索暂时不可用（{e}）")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"网易云音乐搜索暂时不可用（{e}）")
