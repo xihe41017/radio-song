@@ -23,6 +23,7 @@ class Settings:
     # 自动更新（部署脚本生成更新脚本；Windows 开发环境不可用）
     UPDATE_SCRIPT = os.getenv("UPDATE_SCRIPT", "/usr/local/bin/campus-radio-update.sh")
     UPDATE_STATE = os.getenv("UPDATE_STATE", "/var/log/campus-radio-update.state")
+    UPDATE_SERVICE = os.getenv("UPDATE_SERVICE", "campus-radio")
 
     # Nginx 域名解析（后台可配置；Windows 开发环境仅预览）
     NGINX_DOMAINS_FILE = os.getenv("NGINX_DOMAINS_FILE", "/etc/campus/radio-domains.json")
