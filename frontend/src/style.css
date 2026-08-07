@@ -403,3 +403,35 @@ code { font-family: Consolas, monospace; }
   .user-actions { width: 100%; justify-content: flex-start; }
   .user-actions .select { flex: 1; min-width: 0; }
 }
+
+/* ---------- 点歌页：搜索失败兜底（浏览器搜索 / 手动点歌） ---------- */
+.fallback-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  justify-content: center;
+}
+.btn-fallback {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-fallback:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.btn-fallback:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.manual-tip {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: -4px 0 12px;
+}

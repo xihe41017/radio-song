@@ -45,8 +45,15 @@ def create_request(
                 detail=f"单个 IP 最多同时点 {limit} 首，等播完再点吧～",
             )
 
-    # 去重：同一首歌已在待播列表
-    dup = db.query(SongRequest).filter_by(netease_id=payload.netease_id, status="pending").first()
+    # 去重：同一首歌已在待播列表（有网易云 ID 按 ID；手动点歌按歌名+歌手）
+    if payload.netease_id:
+        dup = db.query(SongRequest).filter_by(netease_id=payload.netease_id, status="pending").first()
+    else:
+        dup = (
+            db.query(SongRequest)
+            .filter_by(song_name=payload.song_name, artist=(payload.artist or "").strip(), status="pending")
+            .first()
+        )
     if dup:
         raise HTTPException(status_code=400, detail="这首歌已经在点歌列表里啦")
 

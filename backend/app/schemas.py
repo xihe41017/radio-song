@@ -11,7 +11,7 @@ def _force_utc(v: datetime) -> datetime:
 
 
 class RequestCreate(BaseModel):
-    netease_id: int
+    netease_id: Optional[int] = None   # 手动点歌可为空（浏览器代理搜索则有值）
     song_name: str = Field(..., max_length=200)
     artist: Optional[str] = Field(None, max_length=200)
     album: Optional[str] = Field(None, max_length=200)
