@@ -106,9 +106,44 @@ def _parse_song(s) -> dict:
         return None
 
 
+def _query_tokens(query: str) -> list:
+    """把查询词拆成可匹配的片段：中文按单个字符，英文按单词（>1 字符）。"""
+    import re as _re
+    tokens = []
+    for seg in _re.split(r"[\s,，.、]+", query.strip()):
+        if not seg:
+            continue
+        # 含中文的段按 2 字以上滑窗拆，避免单字误匹配
+        if _re.search(r"[一-鿿]", seg):
+            if len(seg) <= 4:
+                tokens.append(seg)
+            else:
+                for i in range(len(seg) - 1):
+                    tokens.append(seg[i : i + 2])
+        else:
+            if len(seg) > 1:
+                tokens.append(seg.lower())
+            tokens.append(seg.lower())
+    # 去重，保留长度优先
+    return sorted(set(tokens), key=len, reverse=True)
+
+
+def _song_text(song: dict) -> str:
+    return f"{song['name']} {song['artist']} {song['album']}".lower()
+
+
+def _is_relevant(song: dict, tokens: list) -> bool:
+    """判断歌曲是否与关键词相关：歌名/歌手/专辑任一处包含任一 token。"""
+    if not tokens:
+        return True
+    text = _song_text(song)
+    return any(t in text for t in tokens)
+
+
 def search_songs(query: str, limit: int = 10) -> list:
-    """搜索歌曲，返回列表（封面尽力而为）。失败抛 NeteaseError（含原因）。"""
+    """搜索歌曲，返回与关键词相关的歌曲列表。失败抛 NeteaseError（含原因）。"""
     params = urllib.parse.urlencode({"s": query, "type": 1, "limit": limit})
+    tokens = _query_tokens(query)
     last_err = ""
     for base in SEARCH_URLS:
         try:
@@ -125,6 +160,13 @@ def search_songs(query: str, limit: int = 10) -> list:
             if not results:
                 last_err = f"{base} 无有效歌曲"
                 continue
+            # 风控降级时接口会返回与关键词无关的热门推荐，这里过滤掉
+            relevant = [r for r in results if _is_relevant(r, tokens)]
+            if not relevant:
+                last_err = f"{base} 返回结果与关键词无关（疑似被风控，返回热门推荐）"
+                continue
+            # 若接口混入无关结果，优先保留相关项；相关项不足时用过滤后的
+            results = relevant
             for r in results:
                 r["cover"] = _cover(r["album_id"])
             return results
