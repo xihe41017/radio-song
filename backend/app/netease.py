@@ -54,14 +54,19 @@ def _fetch(url: str) -> dict:
     try:
         with opener.open(req, timeout=20) as resp:
             body = resp.read().decode("utf-8", errors="replace")
-            return json.loads(body)
     except urllib.error.HTTPError as e:
         raise NeteaseError(f"HTTP {e.code}（可能被网易云反爬拦截）") from e
     except urllib.error.URLError as e:
         reason = getattr(e, "reason", e)
         raise NeteaseError(f"网络错误：{reason}") from e
+    try:
+        data = json.loads(body)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         raise NeteaseError(f"响应解析失败：{e}") from e
+    if not isinstance(data, dict):
+        # 反爬时常返回 JSON 字符串或数组，不是对象
+        raise NeteaseError(f"响应格式异常（期望 JSON 对象，实际为 {type(data).__name__}）")
+    return data
 
 
 def _cover(album_id) -> str:
@@ -72,11 +77,33 @@ def _cover(album_id) -> str:
         return _cover_cache[album_id]
     try:
         data = _fetch(ALBUM_URL.format(album_id=album_id))
-        url = (data.get("album") or {}).get("picUrl", "")
+        album = data.get("album")
+        url = album.get("picUrl", "") if isinstance(album, dict) else ""
     except Exception:
         url = ""
     _cover_cache[album_id] = url
     return url
+
+
+def _parse_song(s) -> dict:
+    """解析单首歌，结构异常时返回 None（该条跳过）。"""
+    if not isinstance(s, dict):
+        return None
+    album = s.get("album")
+    album = album if isinstance(album, dict) else {}
+    artists = s.get("artists")
+    artists = artists if isinstance(artists, list) else []
+    try:
+        return {
+            "id": int(s["id"]),
+            "name": str(s["name"] or ""),
+            "artist": ", ".join(str(a.get("name", "")) for a in artists if isinstance(a, dict)),
+            "album": str(album.get("name", "")),
+            "album_id": album.get("id"),
+            "duration": int((s.get("duration") or 0) / 1000),
+        }
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def search_songs(query: str, limit: int = 10) -> list:
@@ -86,25 +113,25 @@ def search_songs(query: str, limit: int = 10) -> list:
     for base in SEARCH_URLS:
         try:
             data = _fetch(f"{base}?{params}")
-            songs = (data.get("result") or {}).get("songs") or []
-            if not songs:
+            if not isinstance(data, dict):
+                last_err = f"{base} 响应格式异常"
+                continue
+            result = data.get("result")
+            songs = result.get("songs") if isinstance(result, dict) else None
+            if not songs or not isinstance(songs, list):
                 last_err = f"{base} 返回空结果"
                 continue
-            results = []
-            for s in songs[:limit]:
-                album = s.get("album") or {}
-                results.append({
-                    "id": s["id"],
-                    "name": s["name"],
-                    "artist": ", ".join(a.get("name", "") for a in s.get("artists", []) or []),
-                    "album": album.get("name", ""),
-                    "album_id": album.get("id"),
-                    "duration": int((s.get("duration") or 0) / 1000),
-                })
+            results = [s for s in (_parse_song(x) for x in songs[:limit]) if s is not None]
+            if not results:
+                last_err = f"{base} 无有效歌曲"
+                continue
             for r in results:
                 r["cover"] = _cover(r["album_id"])
             return results
         except NeteaseError as e:
             last_err = str(e)
+            continue
+        except Exception as e:  # 单接口内部异常不中断轮换
+            last_err = f"{base} {e}"
             continue
     raise NeteaseError(last_err or "所有搜索接口均不可用")
